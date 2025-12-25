@@ -3,6 +3,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 require('dotenv').config();
 
+const initDatabase = require('./scripts/initDatabase');
 const db = require('./config/database')
 
 const expenseRoutes = require('./routes/expenses');
@@ -70,25 +71,41 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, async() => {
-  console.log(`
-╔════════════════════════════════════════╗
-║   Expense Tracker API Server          ║
-╠════════════════════════════════════════╣
-║   Port: ${PORT}                        ║
-║   Environment: ${process.env.NODE_ENV || 'development'}            ║
-║   Database: ${process.env.DB_NAME}          ║
-╚════════════════════════════════════════╝
-  `);
-  console.log(`Server is running on http://localhost:${PORT}`);
-  console.log(`API Documentation: http://localhost:${PORT}/`);
-try {
-    await db.query('SELECT 1');
-    console.log('\x1b[32m%s\x1b[0m', '✅ Database connection successful!'); // สีเขียว
+const startServer = async () => {
+  try {
+    // 1. รอ Init Database ให้เสร็จก่อน
+    await initDatabase();
+
+    // 2. พอเสร็จแล้ว ค่อยเริ่มเปิด Server
+    app.listen(PORT, async () => {
+      console.log(`
+    ╔════════════════════════════════════════╗
+    ║    Expense Tracker API Server          ║
+    ╠════════════════════════════════════════╣
+    ║    Port: ${PORT}                          ║
+    ║    Environment: ${process.env.NODE_ENV || 'development'}            ║
+    ║    Database: ${process.env.DB_NAME}          ║
+    ╚════════════════════════════════════════╝
+      `);
+      console.log(`Server is running on http://localhost:${PORT}`);
+      console.log(`API Documentation: http://localhost:${PORT}/`);
+
+      // Test Connection Pool อีกทีเพื่อความชัวร์
+      try {
+        await db.query('SELECT 1');
+        console.log('\x1b[32m%s\x1b[0m', '✅ Database connection successful!');
+      } catch (error) {
+        console.error('\x1b[31m%s\x1b[0m', '❌ Database connection failed!');
+        console.error('Error details:', error.message);
+      }
+    });
+
   } catch (error) {
-    console.error('\x1b[31m%s\x1b[0m', '❌ Database connection failed!'); // สีแดง
-    console.error('Error details:', error.message);
+    console.error('Failed to start server:', error);
+    process.exit(1);
   }
-});
+};
+
+startServer();
 
 module.exports = app;

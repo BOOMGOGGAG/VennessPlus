@@ -1,9 +1,40 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
+const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 async function initDatabase() {
   let connection;
-  
+  const MAX_RETRIES = 10;
+  const RETRY_DELAY = 2000;
+
+  for (let i = 1; i <= MAX_RETRIES; i++) {
+    try {
+      console.log(`[Attempt ${i}/${MAX_RETRIES}] Connecting to MySQL server at ${process.env.DB_HOST}...`);
+
+      connection = await mysql.createConnection({
+        host: process.env.DB_HOST,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        port: process.env.DB_PORT
+      });
+
+      console.log('✅ Connected to MySQL server successfully!');
+      break;
+
+    } catch (error) {
+      console.error(`❌ Connection failed: ${error.message}`);
+
+      if (i === MAX_RETRIES) {
+        console.error('Max retries reached. Exiting...');
+        process.exit(1);
+      }
+
+      console.log(`Waiting ${RETRY_DELAY/1000} seconds before retrying...`);
+      await wait(RETRY_DELAY);
+    }
+  }
+
   try {
     // Connect to MySQL server
     connection = await mysql.createConnection({
@@ -90,14 +121,13 @@ async function initDatabase() {
     console.log('Sample expenses inserted');
 
     console.log('\n✅ Database initialization completed successfully!');
+
+    await connection.end()
   } catch (error) {
     console.error('Error initializing database:', error);
     process.exit(1);
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
   }
+
 }
 
-initDatabase();
+module.exports = initDatabase;

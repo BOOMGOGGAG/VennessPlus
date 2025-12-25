@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node scripts/initDatabase.js && nodemon server.js"
+    "dev": "nodemon server.js"
   },
   "keywords": ["expense", "tracker", "api"],
   "author": "",
