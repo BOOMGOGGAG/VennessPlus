@@ -3,6 +3,8 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 require('dotenv').config();
 
+const db = require('./config/database')
+
 const expenseRoutes = require('./routes/expenses');
 const categoryRoutes = require('./routes/categories');
 const dashboardRoutes = require('./routes/dashboard');
@@ -68,7 +70,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async() => {
   console.log(`
 ╔════════════════════════════════════════╗
 ║   Expense Tracker API Server          ║
@@ -80,6 +82,13 @@ app.listen(PORT, () => {
   `);
   console.log(`Server is running on http://localhost:${PORT}`);
   console.log(`API Documentation: http://localhost:${PORT}/`);
+try {
+    await db.query('SELECT 1');
+    console.log('\x1b[32m%s\x1b[0m', '✅ Database connection successful!'); // สีเขียว
+  } catch (error) {
+    console.error('\x1b[31m%s\x1b[0m', '❌ Database connection failed!'); // สีแดง
+    console.error('Error details:', error.message);
+  }
 });
 
 module.exports = app;
