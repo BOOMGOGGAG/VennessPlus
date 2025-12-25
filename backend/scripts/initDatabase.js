@@ -53,6 +53,10 @@ async function initDatabase() {
     // Use the database
     await connection.query(`USE ${process.env.DB_NAME}`);
 
+    // Drop the table
+    await connection.query(`DROP TABLE IF EXISTS expenses`)
+    await connection.query(`DROP TABLE IF EXISTS categories`)
+
     // Create categories table
     await connection.query(`
       CREATE TABLE IF NOT EXISTS categories (
