@@ -224,7 +224,19 @@ const openEditModal = (expense) => {
     expense_date: expense.expense_date
   };
   receiptFile.value = null;
-  receiptPreview.value = expense.receipt_image ? `${getBaseUrl()}${expense.receipt_image}` : null;
+
+  if (expense.receipt_image) {
+    let imgPath = expense.receipt_image;
+
+    if (imgPath.includes('/uploads/receipts/')) {
+      imgPath = imgPath.replace('/uploads/receipts/', '/api/receipts/image/');
+    }
+
+    receiptPreview.value = `${getBaseUrl()}${imgPath}`;
+  } else {
+    receiptPreview.value = null;
+  }
+
   imageError.value = false;
   showModal.value = true;
 };

@@ -3,7 +3,7 @@ const db = require('../config/database');
 class Expense {
   static async getAll(filters = {}) {
     let query = `
-      SELECT 
+      SELECT
         e.id,
         e.amount,
         e.category_id,
@@ -19,7 +19,7 @@ class Expense {
       JOIN categories c ON e.category_id = c.id
       WHERE 1=1
     `;
-    
+
     const params = [];
 
     if (filters.startDate) {
@@ -47,7 +47,7 @@ class Expense {
 
   static async getById(id) {
     const query = `
-      SELECT 
+      SELECT
         e.id,
         e.amount,
         e.category_id,
@@ -63,7 +63,7 @@ class Expense {
       JOIN categories c ON e.category_id = c.id
       WHERE e.id = ?
     `;
-    
+
     const [rows] = await db.query(query, [id]);
     return rows[0];
   }
@@ -73,7 +73,7 @@ class Expense {
       INSERT INTO expenses (amount, category_id, description, expense_date, receipt_image)
       VALUES (?, ?, ?, ?, ?)
     `;
-    
+
     const [result] = await db.query(query, [
       expenseData.amount,
       expenseData.category_id,
@@ -81,7 +81,7 @@ class Expense {
       expenseData.expense_date,
       expenseData.receipt_image || null
     ]);
-    
+
     return result.insertId;
   }
 
@@ -95,7 +95,7 @@ class Expense {
           receipt_image = ?
       WHERE id = ?
     `;
-    
+
     const [result] = await db.query(query, [
       expenseData.amount,
       expenseData.category_id,
@@ -104,7 +104,7 @@ class Expense {
       expenseData.receipt_image || null,
       id
     ]);
-    
+
     return result.affectedRows;
   }
 
@@ -114,9 +114,98 @@ class Expense {
     return result.affectedRows;
   }
 
+  static async getSummary(filters = {}) {
+    let query = `
+      SELECT
+        COUNT(*) as total_transactions,
+        COALESCE(SUM(amount), 0) as total_amount,
+        COALESCE(AVG(amount), 0) as average_amount,
+        COALESCE(MAX(amount), 0) as highest_expense
+      FROM expenses
+    `;
+    const params = [];
+    const conditions = [];
+
+    if (filters.startDate) {
+      conditions.push('expense_date >= ?');
+      params.push(filters.startDate);
+    }
+
+    if (filters.endDate) {
+      conditions.push('expense_date <= ?');
+      params.push(filters.endDate);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    const [rows] = await db.query(query, params);
+    return rows[0];
+  }
+
+  static async getCategoryBreakdown(filters = {}) {
+    let totalQuery = 'SELECT COALESCE(SUM(amount), 0) as grand_total FROM expenses e WHERE 1=1';
+    let totalParams = [];
+    let conditions = [];
+
+    if (filters.startDate) {
+      conditions.push('e.expense_date >= ?');
+      totalParams.push(filters.startDate);
+    }
+    if (filters.endDate) {
+      conditions.push('e.expense_date <= ?');
+      totalParams.push(filters.endDate);
+    }
+
+    if (conditions.length > 0) {
+      totalQuery += ' AND ' + conditions.join(' AND ');
+    }
+
+    const [totalResult] = await db.query(totalQuery, totalParams);
+    const grandTotal = parseFloat(totalResult[0].grand_total) || 1;
+
+    let query = `
+      SELECT
+        c.id, c.name, c.color, c.icon,
+        COUNT(e.id) as transaction_count,
+        COALESCE(SUM(e.amount), 0) as total_amount
+      FROM expenses e
+      JOIN categories c ON e.category_id = c.id
+    `;
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += ' GROUP BY c.id, c.name, c.color, c.icon ORDER BY total_amount DESC';
+
+    const [rows] = await db.query(query, totalParams);
+
+    return rows.map(row => ({
+      ...row,
+      percentage: (parseFloat(row.total_amount) / grandTotal) * 100
+    }));
+  }
+
+  static async getMonthlyTrend(months = 6) {
+    const query = `
+      SELECT
+        DATE_FORMAT(expense_date, '%Y-%m') as month,
+        SUM(amount) as total_amount
+      FROM expenses
+      WHERE expense_date >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
+      GROUP BY month
+      ORDER BY month ASC
+    `;
+
+    const [rows] = await db.query(query, [months]);
+    return rows;
+  }
+
   static async getCategoryComparison(months = 6) {
     const query = `
-      SELECT 
+      SELECT
         DATE_FORMAT(e.expense_date, '%Y-%m') as month,
         c.id as category_id,
         c.name as category_name,
@@ -137,21 +226,21 @@ class Expense {
 
   static async getCategoryGrowth() {
     const query = `
-      SELECT 
+      SELECT
         c.id,
         c.name,
         c.color,
         c.icon,
-        COALESCE(SUM(CASE 
-          WHEN e.expense_date >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH) 
-          THEN e.amount 
-          ELSE 0 
+        COALESCE(SUM(CASE
+          WHEN e.expense_date >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+          THEN e.amount
+          ELSE 0
         END), 0) as current_month,
-        COALESCE(SUM(CASE 
-          WHEN e.expense_date >= DATE_SUB(CURDATE(), INTERVAL 2 MONTH) 
+        COALESCE(SUM(CASE
+          WHEN e.expense_date >= DATE_SUB(CURDATE(), INTERVAL 2 MONTH)
           AND e.expense_date < DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
-          THEN e.amount 
-          ELSE 0 
+          THEN e.amount
+          ELSE 0
         END), 0) as previous_month
       FROM categories c
       LEFT JOIN expenses e ON c.id = e.category_id
@@ -161,13 +250,13 @@ class Expense {
     `;
 
     const [rows] = await db.query(query);
-    
+
     return rows.map(row => ({
       ...row,
       current_month: parseFloat(row.current_month),
       previous_month: parseFloat(row.previous_month),
       growth_amount: parseFloat(row.current_month) - parseFloat(row.previous_month),
-      growth_percentage: row.previous_month > 0 
+      growth_percentage: row.previous_month > 0
         ? ((parseFloat(row.current_month) - parseFloat(row.previous_month)) / parseFloat(row.previous_month) * 100)
         : (row.current_month > 0 ? 100 : 0)
     }));
