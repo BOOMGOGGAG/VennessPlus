@@ -9,6 +9,7 @@ const db = require('./config/database')
 const expenseRoutes = require('./routes/expenses');
 const categoryRoutes = require('./routes/categories');
 const dashboardRoutes = require('./routes/dashboard');
+const receiptRoutes = require('./routes/receipts');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +18,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// Serve uploaded files
+app.use('/uploads', express.static('uploads'));
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -28,6 +32,7 @@ app.use((req, res, next) => {
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/receipts', receiptRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

@@ -215,49 +215,53 @@ onMounted(() => {
     <!-- Charts -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Category Breakdown -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Category Breakdown</h3>
-        <div v-if="categoryBreakdown.length > 0" class="space-y-4">
-          <div
-            v-for="category in categoryBreakdown"
-            :key="category.id"
-            class="flex items-center justify-between"
-          >
-            <div class="flex items-center space-x-3">
-              <div
-                class="w-10 h-10 rounded-full flex items-center justify-center text-xl flex-shrink-0"
-                :style="{ backgroundColor: category.color + '20' }"
-              >
-                {{ category.icon }}
+      <router-link
+        to="/expenses"
+      >
+        <div class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Category Breakdown</h3>
+          <div v-if="categoryBreakdown.length > 0" class="space-y-4">
+            <div
+              v-for="category in categoryBreakdown"
+              :key="category.id"
+              class="flex items-center justify-between"
+            >
+              <div class="flex items-center space-x-3">
+                <div
+                  class="w-10 h-10 rounded-full flex items-center justify-center text-xl flex-shrink-0"
+                  :style="{ backgroundColor: category.color + '20' }"
+                >
+                  {{ category.icon }}
+                </div>
+                <div>
+                  <p class="font-medium text-gray-900">{{ category.name }}</p>
+                  <p class="text-sm text-gray-500">{{ category.transaction_count }} transactions</p>
+                </div>
               </div>
-              <div>
-                <p class="font-medium text-gray-900">{{ category.name }}</p>
-                <p class="text-sm text-gray-500">{{ category.transaction_count }} transactions</p>
+              <div class="text-right flex-shrink-0">
+                <p class="font-semibold text-gray-900">${{ parseFloat(category.total_amount).toFixed(2) }}</p>
+                <p class="text-sm text-gray-500">{{ parseFloat(category.percentage).toFixed(1) }}%</p>
               </div>
             </div>
-            <div class="text-right flex-shrink-0">
-              <p class="font-semibold text-gray-900">${{ parseFloat(category.total_amount).toFixed(2) }}</p>
-              <p class="text-sm text-gray-500">{{ parseFloat(category.percentage).toFixed(1) }}%</p>
+            <div class="mt-4">
+              <div class="flex h-2 overflow-hidden rounded-full bg-gray-200">
+                <div
+                  v-for="category in categoryBreakdown"
+                  :key="category.id"
+                  :style="{ 
+                    width: category.percentage + '%', 
+                    backgroundColor: category.color 
+                  }"
+                  class="transition-all duration-300"
+                ></div>
+              </div>
             </div>
           </div>
-          <div class="mt-4">
-            <div class="flex h-2 overflow-hidden rounded-full bg-gray-200">
-              <div
-                v-for="category in categoryBreakdown"
-                :key="category.id"
-                :style="{ 
-                  width: category.percentage + '%', 
-                  backgroundColor: category.color 
-                }"
-                class="transition-all duration-300"
-              ></div>
-            </div>
+          <div v-else class="text-center text-gray-500 py-8">
+            No expense data available
           </div>
         </div>
-        <div v-else class="text-center text-gray-500 py-8">
-          No expense data available
-        </div>
-      </div>
+      </router-link>
 
       <!-- Monthly Trend -->
       <router-link

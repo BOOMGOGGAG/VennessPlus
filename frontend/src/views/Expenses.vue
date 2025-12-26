@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import api from '../services/api';
+import ReceiptScanner from '../components/ReceiptScanner.vue';
 
 const expenses = ref([]);
 const categories = ref([]);
@@ -20,6 +21,8 @@ const filters = ref({
   sortOrder: 'desc',
   search: ''
 });
+
+const showReceiptScanner = ref(false);
 
 const filteredExpenses = computed(() => {
   if (!filters.value.search) {
@@ -50,6 +53,24 @@ const highlightSearch = (text) => {
   const after = text.substring(index + filters.value.search.length);
   
   return `${before}<mark class="bg-yellow-200 px-1 rounded">${match}</mark>${after}`;
+};
+
+const handleReceiptExtracted = (data) => {
+  console.log('Extracted data:', data);
+  
+  formData.value.amount = data.amount || formData.value.amount;
+  formData.value.expense_date = data.date || formData.value.expense_date;
+  
+  let description = data.merchant || '';
+  if (data.items && data.items.length > 0) {
+    const itemsList = data.items.map(item => `${item.name} ($${item.price})`).join(', ');
+    description += description ? ` - ${itemsList}` : itemsList;
+  }
+  formData.value.description = description || formData.value.description;
+  
+  showReceiptScanner.value = false;
+  
+  alert(`Receipt scanned! Found: $${data.amount} from ${data.merchant || 'Unknown'}`);
 };
 
 const loadExpenses = async () => {
@@ -86,6 +107,7 @@ const openAddModal = () => {
     description: '',
     expense_date: new Date().toISOString().split('T')[0]
   };
+  showReceiptScanner.value = false;
   showModal.value = true;
 };
 
@@ -103,6 +125,7 @@ const openEditModal = (expense) => {
 const closeModal = () => {
   showModal.value = false;
   editingExpense.value = null;
+  showReceiptScanner.value = false;
 };
 
 const saveExpense = async () => {
@@ -195,7 +218,6 @@ onMounted(() => {
     <!-- Search Bar -->
     <div class="rounded-lg w-1/2 p-4 mb-3 mx-auto">
       <div class="relative">
-        <!-- Icon -->
         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -364,29 +386,107 @@ onMounted(() => {
       class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
       @click.self="closeModal"
     >
-      <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div class="mt-3">
-          <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">
-            {{ editingExpense ? 'Edit Expense' : 'Add New Expense' }}
-          </h3>
-          <form @submit.prevent="saveExpense" class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Amount *</label>
-              <input
-                type="number"
-                step="0.01"
-                v-model="formData.amount"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="0.00"
-              />
+      <div class="relative top-10 mx-auto p-6 border w-full max-w-3xl shadow-2xl rounded-xl bg-white my-8">
+        <div>
+          <!-- Modal Header -->
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-2xl font-bold text-gray-900">
+              {{ editingExpense ? 'Edit Expense' : 'Add New Expense' }}
+            </h3>
+            <button
+              @click="closeModal"
+              class="text-gray-400 hover:text-gray-600 transition"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Receipt Scanner Section (Only for new expenses) -->
+          <div v-if="!editingExpense" class="mb-6">
+            <!-- Scanner Toggle Card -->
+            <div 
+              class="border-2 rounded-xl overflow-hidden transition-all"
+              :class="showReceiptScanner ? 'border-purple-300 bg-purple-50' : 'border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50'"
+            >
+              <!-- Toggle Button -->
+              <button
+                @click="showReceiptScanner = !showReceiptScanner"
+                type="button"
+                class="w-full px-6 py-4 flex items-center justify-between hover:bg-white/50 transition"
+              >
+                <div class="flex items-center space-x-3">
+                  <div class="p-2 bg-purple-600 rounded-lg">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div class="text-left">
+                    <p class="text-lg font-semibold text-gray-900">Scan Receipt (OCR)</p>
+                    <p class="text-sm text-gray-600">Auto-extract amount, date, and merchant from receipt image</p>
+                  </div>
+                </div>
+                <svg 
+                  class="w-6 h-6 text-gray-400 transition-transform duration-200" 
+                  :class="showReceiptScanner ? 'rotate-180' : ''"
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              <!-- Scanner Content -->
+              <div 
+                v-show="showReceiptScanner"
+                class="border-t border-purple-200 bg-white p-6"
+              >
+                <ReceiptScanner @extracted="handleReceiptExtracted" />
+              </div>
             </div>
+          </div>
+
+          <!-- Divider -->
+          <div v-if="!editingExpense && showReceiptScanner" class="relative my-6">
+            <div class="absolute inset-0 flex items-center">
+              <div class="w-full border-t border-gray-300"></div>
+            </div>
+            <div class="relative flex justify-center text-sm">
+              <span class="px-4 bg-white text-gray-500 font-medium">or enter manually</span>
+            </div>
+          </div>
+
+          <!-- Manual Entry Form -->
+          <form @submit.prevent="saveExpense" class="space-y-5">
+            <!-- Amount -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Category *</label>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Amount *
+              </label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 text-lg">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  v-model="formData.amount"
+                  required
+                  class="w-full pl-8 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-lg"
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <!-- Category -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Category *
+              </label>
               <select
                 v-model="formData.category_id"
                 required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-base"
               >
                 <option value="">Select a category</option>
                 <option v-for="category in categories" :key="category.id" :value="category.id">
@@ -394,35 +494,45 @@ onMounted(() => {
                 </option>
               </select>
             </div>
+
+            <!-- Date -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Date *</label>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Date *
+              </label>
               <input
                 type="date"
                 v-model="formData.expense_date"
                 required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-base"
               />
             </div>
+
+            <!-- Description -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Description
+              </label>
               <textarea
                 v-model="formData.description"
-                rows="3"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Optional description..."
+                rows="4"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-base resize-none"
+                placeholder="Add notes about this expense..."
               ></textarea>
             </div>
+
+            <!-- Action Buttons -->
             <div class="flex space-x-3 pt-4">
               <button
                 type="submit"
-                class="flex-1 px-4 py-2 bg-primary text-white rounded-md hover:bg-blue-600 transition"
+                class="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-blue-600 transition font-semibold shadow-md hover:shadow-lg"
               >
-                {{ editingExpense ? 'Update' : 'Add' }}
+                {{ editingExpense ? 'Update' : 'Add' }} Expense
               </button>
               <button
                 type="button"
                 @click="closeModal"
-                class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition"
+                class="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-semibold"
               >
                 Cancel
               </button>
