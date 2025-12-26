@@ -1,3 +1,136 @@
+<script setup>
+import { ref, onMounted } from 'vue';
+import api from '../services/api';
+
+const expenses = ref([]);
+const categories = ref([]);
+const showModal = ref(false);
+const editingExpense = ref(null);
+const formData = ref({
+  amount: '',
+  category_id: '',
+  description: '',
+  expense_date: new Date().toISOString().split('T')[0]
+});
+const filters = ref({
+  startDate: '',
+  endDate: '',
+  categoryId: '',
+  sortBy: 'expense_date',
+  sortOrder: 'desc'
+});
+
+const loadExpenses = async () => {
+  try {
+    const params = {};
+    if (filters.value.startDate) params.startDate = filters.value.startDate;
+    if (filters.value.endDate) params.endDate = filters.value.endDate;
+    if (filters.value.categoryId) params.categoryId = filters.value.categoryId;
+    if (filters.value.sortBy) params.sortBy = filters.value.sortBy;
+    if (filters.value.sortOrder) params.sortOrder = filters.value.sortOrder;
+
+    const response = await api.getExpenses(params);
+    expenses.value = response.data.data;
+  } catch (error) {
+    console.error('Error loading expenses:', error);
+    alert('Failed to load expenses');
+  }
+};
+
+const loadCategories = async () => {
+  try {
+    const response = await api.getCategories();
+    categories.value = response.data.data;
+  } catch (error) {
+    console.error('Error loading categories:', error);
+  }
+};
+
+const openAddModal = () => {
+  editingExpense.value = null;
+  formData.value = {
+    amount: '',
+    category_id: '',
+    description: '',
+    expense_date: new Date().toISOString().split('T')[0]
+  };
+  showModal.value = true;
+};
+
+const openEditModal = (expense) => {
+  editingExpense.value = expense;
+  formData.value = {
+    amount: expense.amount,
+    category_id: expense.category_id,
+    description: expense.description || '',
+    expense_date: expense.expense_date
+  };
+  showModal.value = true;
+};
+
+const closeModal = () => {
+  showModal.value = false;
+  editingExpense.value = null;
+};
+
+const saveExpense = async () => {
+  try {
+    if (editingExpense.value) {
+      await api.updateExpense(editingExpense.value.id, formData.value);
+    } else {
+      await api.createExpense(formData.value);
+    }
+    closeModal();
+    loadExpenses();
+  } catch (error) {
+    console.error('Error saving expense:', error);
+    alert('Failed to save expense');
+  }
+};
+
+const deleteExpense = async (id) => {
+  if (!confirm('Are you sure you want to delete this expense?')) return;
+
+  try {
+    await api.deleteExpense(id);
+    loadExpenses();
+  } catch (error) {
+    console.error('Error deleting expense:', error);
+    alert('Failed to delete expense');
+  }
+};
+
+const toggleSortOrder = () => {
+  filters.value.sortOrder = filters.value.sortOrder === 'desc' ? 'asc' : 'desc';
+  loadExpenses();
+};
+
+const clearFilters = () => {
+  filters.value = {
+    startDate: '',
+    endDate: '',
+    categoryId: '',
+    sortBy: 'expense_date',
+    sortOrder: 'desc'
+  };
+  loadExpenses();
+};
+
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
+onMounted(() => {
+  loadExpenses();
+  loadCategories();
+});
+</script>
+
 <template>
   <div>
     <!-- Page Header -->
@@ -66,7 +199,7 @@
       </div>
       <div class="mt-4 flex justify-between items-center">
         <div class="flex items-center space-x-2">
-          <label class="text-sm font-medium text-gray-700">Order:</label>
+          <label class="text-sm font-medium text-gray-700">Order by date:</label>
           <button
             @click="toggleSortOrder"
             class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition text-sm"
@@ -213,159 +346,3 @@
     </div>
   </div>
 </template>
-
-<script>
-import { ref, onMounted } from 'vue';
-import api from '../services/api';
-
-export default {
-  name: 'Expenses',
-  setup() {
-    const expenses = ref([]);
-    const categories = ref([]);
-    const showModal = ref(false);
-    const editingExpense = ref(null);
-    const formData = ref({
-      amount: '',
-      category_id: '',
-      description: '',
-      expense_date: new Date().toISOString().split('T')[0]
-    });
-    const filters = ref({
-      startDate: '',
-      endDate: '',
-      categoryId: '',
-      sortBy: 'expense_date',
-      sortOrder: 'desc'
-    });
-
-    const loadExpenses = async () => {
-      try {
-        const params = {};
-        if (filters.value.startDate) params.startDate = filters.value.startDate;
-        if (filters.value.endDate) params.endDate = filters.value.endDate;
-        if (filters.value.categoryId) params.categoryId = filters.value.categoryId;
-        if (filters.value.sortBy) params.sortBy = filters.value.sortBy;
-        if (filters.value.sortOrder) params.sortOrder = filters.value.sortOrder;
-
-        const response = await api.getExpenses(params);
-        expenses.value = response.data.data;
-      } catch (error) {
-        console.error('Error loading expenses:', error);
-        alert('Failed to load expenses');
-      }
-    };
-
-    const loadCategories = async () => {
-      try {
-        const response = await api.getCategories();
-        categories.value = response.data.data;
-      } catch (error) {
-        console.error('Error loading categories:', error);
-      }
-    };
-
-    const openAddModal = () => {
-      editingExpense.value = null;
-      formData.value = {
-        amount: '',
-        category_id: '',
-        description: '',
-        expense_date: new Date().toISOString().split('T')[0]
-      };
-      showModal.value = true;
-    };
-
-    const openEditModal = (expense) => {
-      editingExpense.value = expense;
-      formData.value = {
-        amount: expense.amount,
-        category_id: expense.category_id,
-        description: expense.description || '',
-        expense_date: expense.expense_date
-      };
-      showModal.value = true;
-    };
-
-    const closeModal = () => {
-      showModal.value = false;
-      editingExpense.value = null;
-    };
-
-    const saveExpense = async () => {
-      try {
-        if (editingExpense.value) {
-          await api.updateExpense(editingExpense.value.id, formData.value);
-        } else {
-          await api.createExpense(formData.value);
-        }
-        closeModal();
-        loadExpenses();
-      } catch (error) {
-        console.error('Error saving expense:', error);
-        alert('Failed to save expense');
-      }
-    };
-
-    const deleteExpense = async (id) => {
-      if (!confirm('Are you sure you want to delete this expense?')) return;
-
-      try {
-        await api.deleteExpense(id);
-        loadExpenses();
-      } catch (error) {
-        console.error('Error deleting expense:', error);
-        alert('Failed to delete expense');
-      }
-    };
-
-    const toggleSortOrder = () => {
-      filters.value.sortOrder = filters.value.sortOrder === 'desc' ? 'asc' : 'desc';
-      loadExpenses();
-    };
-
-    const clearFilters = () => {
-      filters.value = {
-        startDate: '',
-        endDate: '',
-        categoryId: '',
-        sortBy: 'expense_date',
-        sortOrder: 'desc'
-      };
-      loadExpenses();
-    };
-
-    const formatDate = (dateString) => {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-    };
-
-    onMounted(() => {
-      loadExpenses();
-      loadCategories();
-    });
-
-    return {
-      expenses,
-      categories,
-      showModal,
-      editingExpense,
-      formData,
-      filters,
-      loadExpenses,
-      openAddModal,
-      openEditModal,
-      closeModal,
-      saveExpense,
-      deleteExpense,
-      toggleSortOrder,
-      clearFilters,
-      formatDate
-    };
-  }
-};
-</script>
