@@ -158,6 +158,15 @@ const formatDate = (dateString) => {
   });
 };
 
+const orderByLabel = computed(() => {
+  const labels = {
+    'expense_date': 'Date',
+    'category_name': 'Category',
+    'amount': 'Amount'
+  };
+  return labels[filters.value.sortBy] || null;
+});
+
 onMounted(() => {
   loadExpenses();
   loadCategories();
@@ -269,9 +278,10 @@ onMounted(() => {
           </select>
         </div>
       </div>
+
       <div class="mt-4 flex justify-between items-center">
         <div class="flex items-center space-x-2">
-          <label class="text-sm font-medium text-gray-700">Order by date:</label>
+          <label class="text-sm font-medium text-gray-700">Order by {{ orderByLabel }}:</label>
           <button
             @click="toggleSortOrder"
             class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition text-sm"
