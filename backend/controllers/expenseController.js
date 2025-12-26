@@ -1,7 +1,9 @@
 const Expense = require('../models/Expense');
+const path = require('path');
+const fs = require('fs');
 
 class ExpenseController {
-  static async getAllExpenses(req, res) {
+  static async getAll(req, res) {
     try {
       const filters = {
         startDate: req.query.startDate,
@@ -12,10 +14,10 @@ class ExpenseController {
       };
 
       const expenses = await Expense.getAll(filters);
+      
       res.json({
         success: true,
-        data: expenses,
-        count: expenses.length
+        data: expenses
       });
     } catch (error) {
       console.error('Error fetching expenses:', error);
@@ -27,7 +29,7 @@ class ExpenseController {
     }
   }
 
-  static async getExpenseById(req, res) {
+  static async getById(req, res) {
     try {
       const expense = await Expense.getById(req.params.id);
       
@@ -52,32 +54,34 @@ class ExpenseController {
     }
   }
 
-  static async createExpense(req, res) {
+  static async create(req, res) {
     try {
-      const { amount, category_id, description, expense_date } = req.body;
+      const expenseData = {
+        amount: req.body.amount,
+        category_id: req.body.category_id,
+        description: req.body.description,
+        expense_date: req.body.expense_date,
+        receipt_image: req.file ? `/uploads/receipts/${req.file.filename}` : null
+      };
 
-      // Validation
-      if (!amount || !category_id || !expense_date) {
-        return res.status(400).json({
-          success: false,
-          message: 'Amount, category, and date are required'
-        });
-      }
-
-      const expense = await Expense.create({
-        amount,
-        category_id,
-        description: description || '',
-        expense_date
-      });
+      const expenseId = await Expense.create(expenseData);
+      const expense = await Expense.getById(expenseId);
 
       res.status(201).json({
         success: true,
-        message: 'Expense created successfully',
         data: expense
       });
     } catch (error) {
       console.error('Error creating expense:', error);
+      
+      // Delete uploaded file if expense creation fails
+      if (req.file) {
+        const filePath = path.join(__dirname, '../uploads/receipts', req.file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+
       res.status(500).json({
         success: false,
         message: 'Error creating expense',
@@ -86,39 +90,54 @@ class ExpenseController {
     }
   }
 
-  static async updateExpense(req, res) {
+  static async update(req, res) {
     try {
-      const { amount, category_id, description, expense_date } = req.body;
+      const expenseId = req.params.id;
+      const oldExpense = await Expense.getById(expenseId);
 
-      // Validation
-      if (!amount || !category_id || !expense_date) {
-        return res.status(400).json({
-          success: false,
-          message: 'Amount, category, and date are required'
-        });
-      }
-
-      const expense = await Expense.update(req.params.id, {
-        amount,
-        category_id,
-        description: description || '',
-        expense_date
-      });
-
-      if (!expense) {
+      if (!oldExpense) {
         return res.status(404).json({
           success: false,
           message: 'Expense not found'
         });
       }
 
+      const expenseData = {
+        amount: req.body.amount,
+        category_id: req.body.category_id,
+        description: req.body.description,
+        expense_date: req.body.expense_date,
+        receipt_image: req.file 
+          ? `/uploads/receipts/${req.file.filename}` 
+          : (req.body.keep_receipt === 'true' ? oldExpense.receipt_image : null)
+      };
+
+      // Delete old receipt if new one is uploaded
+      if (req.file && oldExpense.receipt_image) {
+        const oldFilePath = path.join(__dirname, '..', oldExpense.receipt_image);
+        if (fs.existsSync(oldFilePath)) {
+          fs.unlinkSync(oldFilePath);
+        }
+      }
+
+      await Expense.update(expenseId, expenseData);
+      const expense = await Expense.getById(expenseId);
+
       res.json({
         success: true,
-        message: 'Expense updated successfully',
         data: expense
       });
     } catch (error) {
       console.error('Error updating expense:', error);
+
+      // Delete uploaded file if update fails
+      if (req.file) {
+        const filePath = path.join(__dirname, '../uploads/receipts', req.file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+
       res.status(500).json({
         success: false,
         message: 'Error updating expense',
@@ -127,16 +146,26 @@ class ExpenseController {
     }
   }
 
-  static async deleteExpense(req, res) {
+  static async delete(req, res) {
     try {
-      const deleted = await Expense.delete(req.params.id);
+      const expense = await Expense.getById(req.params.id);
 
-      if (!deleted) {
+      if (!expense) {
         return res.status(404).json({
           success: false,
           message: 'Expense not found'
         });
       }
+
+      // Delete receipt image if exists
+      if (expense.receipt_image) {
+        const filePath = path.join(__dirname, '..', expense.receipt_image);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+
+      await Expense.delete(req.params.id);
 
       res.json({
         success: true,

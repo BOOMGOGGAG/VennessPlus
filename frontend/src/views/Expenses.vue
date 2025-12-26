@@ -23,6 +23,10 @@ const filters = ref({
 });
 
 const showReceiptScanner = ref(false);
+const receiptFile = ref(null);
+const receiptPreview = ref(null);
+const showReceiptPreview = ref(false);
+const previewReceiptUrl = ref(null);
 
 const filteredExpenses = computed(() => {
   if (!filters.value.search) {
@@ -70,7 +74,35 @@ const handleReceiptExtracted = (data) => {
   
   showReceiptScanner.value = false;
   
-  alert(`Receipt scanned! Found: $${data.amount} from ${data.merchant || 'Unknown'}`);
+  alert(`✅ Receipt scanned! Found: $${data.amount} from ${data.merchant || 'Unknown'}`);
+};
+
+const handleReceiptUpload = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  receiptFile.value = file;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    receiptPreview.value = e.target.result;
+  };
+  reader.readAsDataURL(file);
+};
+
+const removeReceipt = () => {
+  receiptFile.value = null;
+  receiptPreview.value = null;
+};
+
+const viewReceipt = (receiptUrl) => {
+  previewReceiptUrl.value = `http://localhost:3000${receiptUrl}`;
+  showReceiptPreview.value = true;
+};
+
+const closeReceiptPreview = () => {
+  showReceiptPreview.value = false;
+  previewReceiptUrl.value = null;
 };
 
 const loadExpenses = async () => {
@@ -107,6 +139,8 @@ const openAddModal = () => {
     description: '',
     expense_date: new Date().toISOString().split('T')[0]
   };
+  receiptFile.value = null;
+  receiptPreview.value = null;
   showReceiptScanner.value = false;
   showModal.value = true;
 };
@@ -119,22 +153,39 @@ const openEditModal = (expense) => {
     description: expense.description || '',
     expense_date: expense.expense_date
   };
+  receiptFile.value = null;
+  receiptPreview.value = expense.receipt_image ? `http://localhost:3000${expense.receipt_image}` : null;
   showModal.value = true;
 };
 
 const closeModal = () => {
   showModal.value = false;
   editingExpense.value = null;
+  receiptFile.value = null;
+  receiptPreview.value = null;
   showReceiptScanner.value = false;
 };
 
 const saveExpense = async () => {
   try {
-    if (editingExpense.value) {
-      await api.updateExpense(editingExpense.value.id, formData.value);
-    } else {
-      await api.createExpense(formData.value);
+    const formDataToSend = new FormData();
+    formDataToSend.append('amount', formData.value.amount);
+    formDataToSend.append('category_id', formData.value.category_id);
+    formDataToSend.append('description', formData.value.description || '');
+    formDataToSend.append('expense_date', formData.value.expense_date);
+
+    if (receiptFile.value) {
+      formDataToSend.append('receipt', receiptFile.value);
+    } else if (editingExpense.value && receiptPreview.value) {
+      formDataToSend.append('keep_receipt', 'true');
     }
+
+    if (editingExpense.value) {
+      await api.updateExpense(editingExpense.value.id, formDataToSend);
+    } else {
+      await api.createExpense(formDataToSend);
+    }
+    
     closeModal();
     loadExpenses();
   } catch (error) {
@@ -313,7 +364,7 @@ onMounted(() => {
         </div>
         <button
           @click="clearFilters"
-          class="px-4 py-2  bg-red-500 text-white font-medium rounded-md hover:bg-red-300 transition text-sm"
+          class="px-4 py-2 bg-red-500 text-white font-medium rounded-md hover:bg-red-300 transition text-sm"
         >
           Clear Filters
         </button>
@@ -329,12 +380,13 @@ onMounted(() => {
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receipt</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           <tr v-if="filteredExpenses.length === 0">
-            <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+            <td colspan="6" class="px-6 py-4 text-center text-gray-500">
               {{ filters.search ? 'No expenses match your search' : 'No expenses found. Add your first expense!' }}
             </td>
           </tr>
@@ -357,6 +409,19 @@ onMounted(() => {
             <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
               ${{ parseFloat(expense.amount).toFixed(2) }}
             </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">
+              <button
+                v-if="expense.receipt_image"
+                @click="viewReceipt(expense.receipt_image)"
+                class="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+              >
+                <span class="material-symbols-outlined text-lg">
+                  receipt_long
+                </span>
+                <span>View</span>
+              </button>
+              <span v-else class="text-gray-400">-</span>
+            </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
               <button
                 @click="openEditModal(expense)"
@@ -371,7 +436,7 @@ onMounted(() => {
                 class="text-red-600 hover:text-red-800"
               >
                 <span class="material-symbols-outlined">
-                delete
+                  delete
                 </span>
               </button>
             </td>
@@ -521,6 +586,46 @@ onMounted(() => {
               ></textarea>
             </div>
 
+            <!-- Receipt Upload -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                📷 Receipt Photo
+              </label>
+              
+              <!-- Receipt Preview -->
+              <div v-if="receiptPreview" class="mb-3">
+                <div class="relative inline-block">
+                  <img :src="receiptPreview" alt="Receipt preview" class="h-32 rounded-lg border-2 border-gray-300" />
+                  <button
+                    @click="removeReceipt"
+                    type="button"
+                    class="absolute -top-2 -right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Upload Button -->
+              <label class="cursor-pointer inline-flex items-center px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition">
+                <svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span class="text-sm font-medium text-gray-700">
+                  {{ receiptPreview ? 'Change Receipt' : 'Upload Receipt' }}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  @change="handleReceiptUpload"
+                  class="hidden"
+                />
+              </label>
+              <p class="text-xs text-gray-500 mt-1">Optional - Upload a photo of your receipt</p>
+            </div>
+
             <!-- Action Buttons -->
             <div class="flex space-x-3 pt-4">
               <button
@@ -539,6 +644,25 @@ onMounted(() => {
             </div>
           </form>
         </div>
+      </div>
+    </div>
+
+    <!-- Receipt Preview Modal -->
+    <div
+      v-if="showReceiptPreview"
+      class="fixed inset-0 bg-black bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center"
+      @click.self="closeReceiptPreview"
+    >
+      <div class="relative max-w-4xl max-h-screen p-4">
+        <button
+          @click="closeReceiptPreview"
+          class="absolute top-6 right-6 p-2 bg-white rounded-full hover:bg-gray-100 shadow-lg z-10"
+        >
+          <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        <img :src="previewReceiptUrl" alt="Receipt" class="max-w-full max-h-screen rounded-lg shadow-2xl" />
       </div>
     </div>
   </div>

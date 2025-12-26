@@ -1,9 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://accounting.redirectme.net/api';
-
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: 'http://localhost:3000/api',
   headers: {
     'Content-Type': 'application/json'
   }
@@ -14,19 +12,31 @@ export default {
   getExpenses(params = {}) {
     return api.get('/expenses', { params });
   },
-  
+
   getExpense(id) {
     return api.get(`/expenses/${id}`);
   },
-  
-  createExpense(expense) {
-    return api.post('/expenses', expense);
+
+  createExpense(data) {
+    // If data contains a file, use FormData
+    if (data instanceof FormData) {
+      return api.post('/expenses', data, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+    }
+    return api.post('/expenses', data);
   },
-  
-  updateExpense(id, expense) {
-    return api.put(`/expenses/${id}`, expense);
+
+  updateExpense(id, data) {
+    // If data contains a file, use FormData
+    if (data instanceof FormData) {
+      return api.put(`/expenses/${id}`, data, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+    }
+    return api.put(`/expenses/${id}`, data);
   },
-  
+
   deleteExpense(id) {
     return api.delete(`/expenses/${id}`);
   },
@@ -35,19 +45,15 @@ export default {
   getCategories() {
     return api.get('/categories');
   },
-  
-  getCategory(id) {
-    return api.get(`/categories/${id}`);
+
+  createCategory(data) {
+    return api.post('/categories', data);
   },
-  
-  createCategory(category) {
-    return api.post('/categories', category);
+
+  updateCategory(id, data) {
+    return api.put(`/categories/${id}`, data);
   },
-  
-  updateCategory(id, category) {
-    return api.put(`/categories/${id}`, category);
-  },
-  
+
   deleteCategory(id) {
     return api.delete(`/categories/${id}`);
   },
@@ -65,12 +71,24 @@ export default {
     return api.get('/dashboard/monthly-trend', { params });
   },
 
-  // New methods for category comparison
   getCategoryComparison(params = {}) {
     return api.get('/dashboard/category-comparison', { params });
   },
 
   getCategoryGrowth() {
     return api.get('/dashboard/category-growth');
+  },
+
+  // Receipts
+  uploadReceipt(file) {
+    const formData = new FormData();
+    formData.append('receipt', file);
+    return api.post('/receipts/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  deleteReceipt(filename) {
+    return api.delete(`/receipts/${filename}`);
   }
 };

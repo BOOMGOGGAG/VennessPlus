@@ -8,9 +8,14 @@ async function initDatabase() {
   const MAX_RETRIES = 10;
   const RETRY_DELAY = 2000;
 
+  console.log('='.repeat(60));
+  console.log('DATABASE INITIALIZATION SCRIPT STARTED');
+  console.log('='.repeat(60));
+
+  // Connect to MySQL with retries
   for (let i = 1; i <= MAX_RETRIES; i++) {
     try {
-      console.log(`[Attempt ${i}/${MAX_RETRIES}] Connecting to MySQL server at ${process.env.DB_HOST}...`);
+      console.log(`\n[Attempt ${i}/${MAX_RETRIES}] Connecting to MySQL server at ${process.env.DB_HOST}...`);
 
       connection = await mysql.createConnection({
         host: process.env.DB_HOST,
@@ -26,7 +31,7 @@ async function initDatabase() {
       console.error(`❌ Connection failed: ${error.message}`);
 
       if (i === MAX_RETRIES) {
-        console.error('Max retries reached. Exiting...');
+        console.error('❌ Max retries reached. Exiting...');
         process.exit(1);
       }
 
@@ -36,30 +41,26 @@ async function initDatabase() {
   }
 
   try {
-    // Connect to MySQL server
-    connection = await mysql.createConnection({
-      host: process.env.DB_HOST,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      port: process.env.DB_PORT
-    });
-
-    console.log('Connected to MySQL server');
-
     // Create database if not exists
     await connection.query(`CREATE DATABASE IF NOT EXISTS ${process.env.DB_NAME}`);
-    console.log(`Database '${process.env.DB_NAME}' created or already exists`);
+    console.log(`✅ Database '${process.env.DB_NAME}' created or already exists`);
 
     // Use the database
     await connection.query(`USE ${process.env.DB_NAME}`);
+    console.log('✅ Database selected');
 
-    // Drop the table
-    await connection.query(`DROP TABLE IF EXISTS expenses`)
-    await connection.query(`DROP TABLE IF EXISTS categories`)
+    // Drop existing tables
+    console.log('\n🗑️  Dropping existing tables...');
+    await connection.query(`SET FOREIGN_KEY_CHECKS = 0`);
+    await connection.query(`DROP TABLE IF EXISTS expenses`);
+    await connection.query(`DROP TABLE IF EXISTS categories`);
+    await connection.query(`SET FOREIGN_KEY_CHECKS = 1`);
+    console.log('✅ Tables dropped');
 
     // Create categories table
+    console.log('\n📋 Creating categories table...');
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS categories (
+      CREATE TABLE categories (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(100) NOT NULL UNIQUE,
         color VARCHAR(7) DEFAULT '#3B82F6',
@@ -67,24 +68,27 @@ async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('Categories table created');
+    console.log('✅ Categories table created');
 
-    // Create expenses table
+    // Create expenses table with receipt_image field
+    console.log('\n📋 Creating expenses table...');
     await connection.query(`
-      CREATE TABLE IF NOT EXISTS expenses (
+      CREATE TABLE expenses (
         id INT AUTO_INCREMENT PRIMARY KEY,
         amount DECIMAL(10, 2) NOT NULL,
         category_id INT NOT NULL,
         description TEXT,
         expense_date DATE NOT NULL,
+        receipt_image VARCHAR(255) DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT
       )
     `);
-    console.log('Expenses table created');
+    console.log('✅ Expenses table created with receipt_image field');
 
     // Insert default categories
+    console.log('\n📝 Inserting default categories...');
     const defaultCategories = [
       ['Food & Dining', '#EF4444', '🍔'],
       ['Transportation', '#3B82F6', '🚗'],
@@ -98,13 +102,14 @@ async function initDatabase() {
 
     for (const [name, color, icon] of defaultCategories) {
       await connection.query(
-        'INSERT IGNORE INTO categories (name, color, icon) VALUES (?, ?, ?)',
+        'INSERT INTO categories (name, color, icon) VALUES (?, ?, ?)',
         [name, color, icon]
       );
     }
-    console.log('Default categories inserted');
+    console.log(`✅ ${defaultCategories.length} categories inserted`);
 
     // Insert sample expenses
+    console.log('\n📝 Inserting sample expenses...');
     const sampleExpenses = [
       // January 2025 - Starting point
       [85.50, 1, 'Grocery shopping at Whole Foods', '2025-01-05'],
@@ -456,22 +461,43 @@ async function initDatabase() {
       [80.00, 7, 'End of year courses', '2025-12-15']
     ];
 
+    let insertedCount = 0;
     for (const [amount, category_id, description, expense_date] of sampleExpenses) {
       await connection.query(
         'INSERT INTO expenses (amount, category_id, description, expense_date) VALUES (?, ?, ?, ?)',
         [amount, category_id, description, expense_date]
       );
+      insertedCount++;
     }
-    console.log('Sample expenses inserted');
+    console.log(`✅ ${insertedCount} sample expenses inserted`);
 
-    console.log('\n✅ Database initialization completed successfully!');
+    console.log('\n' + '='.repeat(60));
+    console.log('✅ DATABASE INITIALIZATION COMPLETED SUCCESSFULLY!');
+    console.log('='.repeat(60));
 
-    await connection.end()
   } catch (error) {
-    console.error('Error initializing database:', error);
-    process.exit(1);
+    console.error('\n❌ ERROR DURING INITIALIZATION');
+    console.error(error);
+    throw error;
+  } finally {
+    if (connection) {
+      await connection.end();
+      console.log('\n🔌 Connection closed');
+    }
   }
+}
 
+// Allow running directly
+if (require.main === module) {
+  initDatabase()
+    .then(() => {
+      console.log('\n✅ Script completed successfully');
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('\n❌ Script failed:', error.message);
+      process.exit(1);
+    });
 }
 
 module.exports = initDatabase;
