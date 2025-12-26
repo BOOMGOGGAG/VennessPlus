@@ -136,10 +136,10 @@ onMounted(() => {
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
-        <div class="flex items-end">
+        <div class="flex items-end mb-0.5">
           <button
             @click="clearFilters"
-            class="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition"
+            class="w-full px-4 py-2 bg-red-500 text-white font-medium rounded-md hover:bg-red-300 transition"
           >
             Clear Filters
           </button>
@@ -260,15 +260,19 @@ onMounted(() => {
       </div>
 
       <!-- Monthly Trend -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Monthly Trend</h3>
-        <div v-if="monthlyTrend.length > 0">
-          <canvas ref="trendChart"></canvas>
+      <router-link
+        to="/comparison"
+      >
+        <div class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Monthly Trend</h3>
+          <div v-if="monthlyTrend.length > 0">
+            <canvas ref="trendChart"></canvas>
+          </div>
+          <div v-else class="text-center text-gray-500 py-8">
+            No trend data available
+          </div>
         </div>
-        <div v-else class="text-center text-gray-500 py-8">
-          No trend data available
-        </div>
-      </div>
+      </router-link>
     </div>
   </div>
 </template>

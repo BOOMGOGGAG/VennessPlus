@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import api from '../services/api';
 
 const expenses = ref([]);
@@ -17,8 +17,40 @@ const filters = ref({
   endDate: '',
   categoryId: '',
   sortBy: 'expense_date',
-  sortOrder: 'desc'
+  sortOrder: 'desc',
+  search: ''
 });
+
+const filteredExpenses = computed(() => {
+  if (!filters.value.search) {
+    return expenses.value;
+  }
+  
+  const searchLower = filters.value.search.toLowerCase();
+  return expenses.value.filter(expense => {
+    const descriptionMatch = expense.description?.toLowerCase().includes(searchLower);
+    const categoryMatch = expense.category_name?.toLowerCase().includes(searchLower);
+    const amountMatch = expense.amount.toString().includes(searchLower);
+    
+    return descriptionMatch || categoryMatch || amountMatch;
+  });
+});
+
+const highlightSearch = (text) => {
+  if (!filters.value.search || !text) return text;
+  
+  const searchLower = filters.value.search.toLowerCase();
+  const textLower = text.toLowerCase();
+  const index = textLower.indexOf(searchLower);
+  
+  if (index === -1) return text;
+  
+  const before = text.substring(0, index);
+  const match = text.substring(index, index + filters.value.search.length);
+  const after = text.substring(index + filters.value.search.length);
+  
+  return `${before}<mark class="bg-yellow-200 px-1 rounded">${match}</mark>${after}`;
+};
 
 const loadExpenses = async () => {
   try {
@@ -111,7 +143,8 @@ const clearFilters = () => {
     endDate: '',
     categoryId: '',
     sortBy: 'expense_date',
-    sortOrder: 'desc'
+    sortOrder: 'desc',
+    search: ''
   };
   loadExpenses();
 };
@@ -148,6 +181,45 @@ onMounted(() => {
         </svg>
         <span>Add Expense</span>
       </button>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="rounded-lg w-1/2 p-4 mb-3 mx-auto">
+      <div class="relative">
+        <!-- Icon -->
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+
+        <!-- Box for type -->
+        <input
+          type="text"
+          v-model="filters.search"
+          class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary sm:text-sm"
+          placeholder="Search by description, category, or amount..."
+        />
+
+        <!-- Clear -->
+        <div
+          v-if="filters.search"
+          class="absolute inset-y-0 right-0 pr-3 flex items-center"
+        >
+          <button
+            @click="filters.search = ''"
+            class="text-gray-400 hover:text-gray-600"
+          >
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <!-- Found [number] result -->
+      <div v-if="filters.search" class="mt-2 text-sm text-gray-600">
+        Found {{ filteredExpenses.length }} result{{ filteredExpenses.length !== 1 ? 's' : '' }}
+      </div>
     </div>
 
     <!-- Filters and Sorting -->
@@ -209,7 +281,7 @@ onMounted(() => {
         </div>
         <button
           @click="clearFilters"
-          class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition text-sm"
+          class="px-4 py-2  bg-red-500 text-white font-medium rounded-md hover:bg-red-300 transition text-sm"
         >
           Clear Filters
         </button>
@@ -229,25 +301,26 @@ onMounted(() => {
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          <tr v-if="expenses.length === 0">
+          <tr v-if="filteredExpenses.length === 0">
             <td colspan="5" class="px-6 py-4 text-center text-gray-500">
-              No expenses found. Add your first expense!
+              {{ filters.search ? 'No expenses match your search' : 'No expenses found. Add your first expense!' }}
             </td>
           </tr>
-          <tr v-for="expense in expenses" :key="expense.id" class="hover:bg-gray-50">
+          <tr v-for="expense in filteredExpenses" :key="expense.id" class="hover:bg-gray-50">
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
               {{ formatDate(expense.expense_date) }}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap">
+            <td class="px-6 py-4 whitespace-nowrap max-w-xs">
               <span
-                class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full"
+                class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full block truncate"
                 :style="{ backgroundColor: expense.category_color + '20', color: expense.category_color }"
               >
                 {{ expense.category_icon }} {{ expense.category_name }}
               </span>
             </td>
-            <td class="px-6 py-4 text-sm text-gray-900">
-              {{ expense.description || '-' }}
+            <td class="px-6 py-4 text-sm text-gray-900 max-w-xs">
+              <span v-if="filters.search && expense.description" v-html="highlightSearch(expense.description)"></span>
+              <span v-else class="block truncate">{{ expense.description || '-' }}</span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
               ${{ parseFloat(expense.amount).toFixed(2) }}
@@ -257,13 +330,17 @@ onMounted(() => {
                 @click="openEditModal(expense)"
                 class="text-primary hover:text-blue-700 mr-3"
               >
-                Edit
+                <span class="material-symbols-outlined">
+                  edit
+                </span>
               </button>
               <button
                 @click="deleteExpense(expense.id)"
                 class="text-red-600 hover:text-red-800"
               >
-                Delete
+                <span class="material-symbols-outlined">
+                delete
+                </span>
               </button>
             </td>
           </tr>

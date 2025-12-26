@@ -276,24 +276,33 @@ onMounted(() => {
           <div class="flex space-x-2">
             <button
               @click="changeChartType('line')"
-              class="flex-1 px-4 py-2 rounded-md transition"
+              class="flex-1 px-4 py-2 rounded-md transition space-x-1"
               :class="chartType === 'line' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'"
             >
-              📈 Line
+              <span class="material-symbols-outlined align-middle">
+              finance_mode
+              </span>
+              <span>Line</span>
             </button>
             <button
               @click="changeChartType('bar')"
-              class="flex-1 px-4 py-2 rounded-md transition"
+              class="flex-1 px-4 py-2 rounded-md transition space-x-1"
               :class="chartType === 'bar' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'"
             >
-              📊 Bar
+              <span class="material-symbols-outlined align-middle">
+              equalizer
+              </span>
+              <span>Bar</span>
             </button>
             <button
               @click="changeChartType('pie')"
-              class="flex-1 px-4 py-2 rounded-md transition"
+              class="flex-1 px-4 py-2 rounded-md transition space-x-1"
               :class="chartType === 'pie' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'"
             >
-              🥧 Pie
+              <span class="material-symbols-outlined align-middle">
+              clock_loader_90
+              </span>
+              <span>Pie</span>
             </button>
           </div>
         </div>
