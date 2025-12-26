@@ -9,7 +9,7 @@ const getBaseUrl = () => {
   //   return `${window.location.protocol}//${window.location.hostname}`;
   // }
   // return 'http://localhost:3000';
-  return 'https://accounting.redirectme.net'
+  return 'https://accounting.redirectme.net/expenses'
 };
 
 const expenses = ref([]);
@@ -36,6 +36,7 @@ const receiptFile = ref(null);
 const receiptPreview = ref(null);
 const showReceiptPreview = ref(false);
 const previewReceiptUrl = ref(null);
+const imageError = ref(false);
 
 const filteredExpenses = computed(() => {
   if (!filters.value.search) {
@@ -91,55 +92,80 @@ const handleReceiptExtracted = (data) => {
   
   showReceiptScanner.value = false;
   
-  alert(`✅ Receipt scanned!\n💰 Amount: $${data.amount}\n🏪 Merchant: ${data.merchant || 'Unknown'}\n📷 Receipt image saved!`);
+  alert(`Receipt scanned!
+    Amount: $${data.amount}
+    Merchant: ${data.merchant || 'Unknown'}
+    Receipt image saved!`
+  );
 };
+
 
 const handleReceiptUpload = (event) => {
   const file = event.target.files[0];
   if (!file) {
-    console.log('No file selected');
+    console.log('❌ No file selected');
     return;
   }
 
-  console.log('File selected:', file.name, file.type, file.size);
+  console.log('📁 File selected:', file.name, file.type, `${(file.size / 1024).toFixed(2)} KB`);
 
   // Validate file type
   if (!file.type.startsWith('image/')) {
-    alert('Please select an image file');
+    alert('❌ Please select an image file');
     return;
   }
 
   // Validate file size (max 5MB)
   if (file.size > 5 * 1024 * 1024) {
-    alert('File size must be less than 5MB');
+    alert('❌ File size must be less than 5MB');
     return;
   }
 
   receiptFile.value = file;
+  imageError.value = false;
   
   const reader = new FileReader();
   
   reader.onload = (e) => {
     receiptPreview.value = e.target.result;
-    console.log('Preview set:', receiptPreview.value.substring(0, 50) + '...');
+    console.log('✅ Preview generated:', receiptPreview.value.substring(0, 50) + '...');
   };
   
   reader.onerror = (error) => {
-    console.error('FileReader error:', error);
-    alert('Error reading file');
+    console.error('❌ FileReader error:', error);
+    imageError.value = true;
+    alert('❌ Error reading file');
   };
   
   reader.readAsDataURL(file);
 };
 
+const handleImageError = () => {
+  console.error('❌ Image failed to load');
+  imageError.value = true;
+};
+
+const handleImageLoad = () => {
+  console.log('✅ Image loaded successfully');
+  imageError.value = false;
+};
+
 const removeReceipt = () => {
   receiptFile.value = null;
   receiptPreview.value = null;
-  console.log('Receipt removed');
+  imageError.value = false;
+  console.log('🗑️ Receipt removed');
 };
 
 const viewReceipt = (receiptUrl) => {
-  previewReceiptUrl.value = `${getBaseUrl()}${receiptUrl}`;
+  let finalUrl = receiptUrl;
+
+  if (finalUrl && finalUrl.includes('/uploads/receipts/')) {
+    finalUrl = finalUrl.replace('/uploads/receipts/', '/api/receipts/image/');
+  }
+
+  previewReceiptUrl.value = `${getBaseUrl()}${finalUrl}`;
+
   showReceiptPreview.value = true;
   console.log('Viewing receipt:', previewReceiptUrl.value);
 };
@@ -185,6 +211,7 @@ const openAddModal = () => {
   };
   receiptFile.value = null;
   receiptPreview.value = null;
+  imageError.value = false;
   showReceiptScanner.value = false;
   showModal.value = true;
 };
@@ -199,6 +226,7 @@ const openEditModal = (expense) => {
   };
   receiptFile.value = null;
   receiptPreview.value = expense.receipt_image ? `${getBaseUrl()}${expense.receipt_image}` : null;
+  imageError.value = false;
   showModal.value = true;
 };
 
@@ -207,6 +235,7 @@ const closeModal = () => {
   editingExpense.value = null;
   receiptFile.value = null;
   receiptPreview.value = null;
+  imageError.value = false;
   showReceiptScanner.value = false;
 };
 
@@ -219,10 +248,9 @@ const saveExpense = async () => {
     formDataToSend.append('expense_date', formData.value.expense_date);
 
     if (receiptFile.value) {
-      console.log('Uploading receipt file:', receiptFile.value.name);
+      console.log('📤 Uploading receipt file:', receiptFile.value.name);
       formDataToSend.append('receipt', receiptFile.value);
     } else if (editingExpense.value && receiptPreview.value && !receiptPreview.value.startsWith('data:')) {
-      // Keep existing receipt
       formDataToSend.append('keep_receipt', 'true');
     }
 
@@ -288,6 +316,7 @@ const orderByLabel = computed(() => {
 });
 
 onMounted(() => {
+  console.log('🚀 Component mounted, base URL:', getBaseUrl());
   loadExpenses();
   loadCategories();
 });
@@ -633,11 +662,7 @@ onMounted(() => {
             </div>
 
             <!-- Receipt Upload -->
-            <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-2">
-                📷 Receipt Photo
-              </label>
-              
+            <div>              
               <!-- Show if receipt was auto-saved from OCR -->
               <div v-if="receiptPreview && !editingExpense" class="mb-3 p-3 bg-green-50 border border-green-300 rounded-lg">
                 <div class="flex items-start space-x-2">
@@ -645,7 +670,7 @@ onMounted(() => {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div class="flex-1">
-                    <p class="text-sm font-semibold text-green-800">✅ Receipt image saved from OCR scan</p>
+                    <p class="text-sm font-semibold text-green-800">Receipt image saved from OCR scan</p>
                     <p class="text-xs text-green-700 mt-1">Your scanned receipt will be automatically attached to this expense</p>
                   </div>
                 </div>

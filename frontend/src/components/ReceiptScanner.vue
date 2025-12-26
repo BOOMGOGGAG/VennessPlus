@@ -1,7 +1,6 @@
 <script setup>
 import { ref } from 'vue';
 import { createWorker } from 'tesseract.js';
-import api from '../services/api';
 
 const emit = defineEmits(['extracted']);
 
@@ -14,7 +13,7 @@ const canvasRef = ref(null);
 const stream = ref(null);
 const isDragging = ref(false);
 const fileInputRef = ref(null);
-const currentImageFile = ref(null);
+const currentImageFile = ref(null); // Store the actual file
 
 const handleDragEnter = (e) => {
   e.preventDefault();
@@ -53,7 +52,7 @@ const triggerFileInput = () => {
 };
 
 const processFile = (file) => {
-  currentImageFile.value = file;
+  currentImageFile.value = file; // Store the file
   
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -115,29 +114,15 @@ const stopCamera = () => {
   showCamera.value = false;
 };
 
-// Upload image to backend and get URL
-const uploadImageToBackend = async (file) => {
-  try {
-    console.log('📤 Uploading receipt to backend...');
-    const response = await api.uploadReceipt(file);
-    console.log('✅ Upload response:', response.data);
-    return response.data.data; // Returns { filename, url, path, size, mimetype }
-  } catch (error) {
-    console.error('❌ Upload error:', error);
-    return null;
-  }
-};
-
 const processImage = async (imageData) => {
   isScanning.value = true;
   progress.value = 0;
 
   try {
-    // Step 1: OCR Processing
     const worker = await createWorker('eng', 1, {
       logger: (m) => {
         if (m.status === 'recognizing text') {
-          progress.value = Math.round(m.progress * 50); // 0-50% for OCR
+          progress.value = Math.round(m.progress * 100);
         }
       }
     });
@@ -145,20 +130,13 @@ const processImage = async (imageData) => {
     const { data: { text } } = await worker.recognize(imageData);
     await worker.terminate();
 
-    // Step 2: Upload image to backend
-    progress.value = 60;
-    const uploadResult = await uploadImageToBackend(currentImageFile.value);
-    progress.value = 80;
-
-    // Step 3: Parse extracted text
     const extractedData = parseReceiptText(text);
-    progress.value = 100;
-
-    // Emit data with backend URL
+    
+    // Emit both extracted data AND the image file
     emit('extracted', {
       ...extractedData,
-      receiptUrl: uploadResult?.url || null, // Backend URL like /uploads/receipts/receipt-123.png
-      receiptPath: uploadResult?.path || null // Full server path
+      imageFile: currentImageFile.value,
+      imagePreview: imageData
     });
 
   } catch (error) {
@@ -257,7 +235,7 @@ const clearPreview = () => {
 </script>
 
 <template>
-  <!-- Template stays exactly the same -->
+  <!-- Template stays the same -->
   <div class="space-y-4">
     <div v-if="!previewImage" class="space-y-4">
       
@@ -294,7 +272,7 @@ const clearPreview = () => {
               class="text-lg font-semibold transition-colors duration-200" 
               :class="isDragging ? 'text-blue-600' : 'text-gray-700'"
             >
-              {{ isDragging ? '📥 Drop your receipt here!' : '🖼️ Drag & Drop Receipt Image' }}
+              {{ isDragging ? 'Drop your receipt here!' : 'Drag & Drop Receipt Image' }}
             </p>
             <p class="text-sm text-gray-500">
               or click the button below to browse files
@@ -320,7 +298,7 @@ const clearPreview = () => {
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
           </svg>
-          <span>📁 Upload Image</span>
+          <span>Upload Image</span>
         </button>
 
         <button
@@ -332,7 +310,7 @@ const clearPreview = () => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
-          <span>📸 Use Camera</span>
+          <span>Use Camera</span>
         </button>
       </div>
 
@@ -363,14 +341,14 @@ const clearPreview = () => {
           type="button"
           class="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium shadow-md"
         >
-          📸 Capture Photo
+          Capture Photo
         </button>
         <button
           @click="stopCamera"
           type="button"
           class="flex-1 px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition font-medium shadow-md"
         >
-          ❌ Cancel
+          Cancel
         </button>
       </div>
     </div>
@@ -397,7 +375,7 @@ const clearPreview = () => {
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <span class="text-sm font-medium text-blue-900">🔍 Processing receipt...</span>
+            <span class="text-sm font-medium text-blue-900">🔍 Scanning receipt...</span>
           </div>
           <span class="text-sm font-bold text-blue-700">{{ progress }}%</span>
         </div>
@@ -410,7 +388,7 @@ const clearPreview = () => {
         </div>
         
         <p class="text-xs text-blue-700 text-center">
-          Scanning receipt and uploading to server...
+          Please wait while we extract data from your receipt...
         </p>
       </div>
     </div>
