@@ -3,6 +3,14 @@ import { ref, onMounted, computed } from 'vue';
 import api from '../services/api';
 import ReceiptScanner from '../components/ReceiptScanner.vue';
 
+// Helper function to get base URL
+const getBaseUrl = () => {
+  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return `${window.location.protocol}//${window.location.hostname}`;
+  }
+  return 'http://localhost:3000';
+};
+
 const expenses = ref([]);
 const categories = ref([]);
 const showModal = ref(false);
@@ -27,13 +35,6 @@ const receiptFile = ref(null);
 const receiptPreview = ref(null);
 const showReceiptPreview = ref(false);
 const previewReceiptUrl = ref(null);
-
-const getBaseUrl = () => {
-  if (window.location.hostname !== 'localhost') {
-    return `${window.location.protocol}//${window.location.hostname}`;
-  }
-  return 'http://localhost:3000';
-};
 
 const filteredExpenses = computed(() => {
   if (!filters.value.search) {
@@ -86,25 +87,52 @@ const handleReceiptExtracted = (data) => {
 
 const handleReceiptUpload = (event) => {
   const file = event.target.files[0];
-  if (!file) return;
+  if (!file) {
+    console.log('No file selected');
+    return;
+  }
+
+  console.log('File selected:', file.name, file.type, file.size);
+
+  // Validate file type
+  if (!file.type.startsWith('image/')) {
+    alert('Please select an image file');
+    return;
+  }
+
+  // Validate file size (max 5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    alert('File size must be less than 5MB');
+    return;
+  }
 
   receiptFile.value = file;
   
   const reader = new FileReader();
+  
   reader.onload = (e) => {
     receiptPreview.value = e.target.result;
+    console.log('Preview set:', receiptPreview.value.substring(0, 50) + '...');
   };
+  
+  reader.onerror = (error) => {
+    console.error('FileReader error:', error);
+    alert('Error reading file');
+  };
+  
   reader.readAsDataURL(file);
 };
 
 const removeReceipt = () => {
   receiptFile.value = null;
   receiptPreview.value = null;
+  console.log('Receipt removed');
 };
 
 const viewReceipt = (receiptUrl) => {
   previewReceiptUrl.value = `${getBaseUrl()}${receiptUrl}`;
   showReceiptPreview.value = true;
+  console.log('Viewing receipt:', previewReceiptUrl.value);
 };
 
 const closeReceiptPreview = () => {
@@ -182,8 +210,10 @@ const saveExpense = async () => {
     formDataToSend.append('expense_date', formData.value.expense_date);
 
     if (receiptFile.value) {
+      console.log('Uploading receipt file:', receiptFile.value.name);
       formDataToSend.append('receipt', receiptFile.value);
-    } else if (editingExpense.value && receiptPreview.value) {
+    } else if (editingExpense.value && receiptPreview.value && !receiptPreview.value.startsWith('data:')) {
+      // Keep existing receipt
       formDataToSend.append('keep_receipt', 'true');
     }
 
@@ -602,7 +632,13 @@ onMounted(() => {
               <!-- Receipt Preview -->
               <div v-if="receiptPreview" class="mb-3">
                 <div class="relative inline-block">
-                  <img :src="receiptPreview" alt="Receipt preview" class="h-32 rounded-lg border-2 border-gray-300" />
+                  <img 
+                    :src="receiptPreview" 
+                    alt="Receipt preview" 
+                    class="h-32 rounded-lg border-2 border-gray-300"
+                    @error="(e) => { console.error('Image load error:', e); alert('Failed to load image preview'); }"
+                    @load="() => console.log('Image loaded successfully')"
+                  />
                   <button
                     @click="removeReceipt"
                     type="button"
@@ -613,6 +649,7 @@ onMounted(() => {
                     </svg>
                   </button>
                 </div>
+                <p class="text-xs text-gray-600 mt-1">Preview ready</p>
               </div>
 
               <!-- Upload Button -->
@@ -630,7 +667,7 @@ onMounted(() => {
                   class="hidden"
                 />
               </label>
-              <p class="text-xs text-gray-500 mt-1">Optional - Upload a photo of your receipt</p>
+              <p class="text-xs text-gray-500 mt-1">Optional - Upload a photo of your receipt (max 5MB)</p>
             </div>
 
             <!-- Action Buttons -->
