@@ -28,6 +28,13 @@ const receiptPreview = ref(null);
 const showReceiptPreview = ref(false);
 const previewReceiptUrl = ref(null);
 
+const getBaseUrl = () => {
+  if (window.location.hostname !== 'localhost') {
+    return `${window.location.protocol}//${window.location.hostname}`;
+  }
+  return 'http://localhost:3000';
+};
+
 const filteredExpenses = computed(() => {
   if (!filters.value.search) {
     return expenses.value;
@@ -96,7 +103,7 @@ const removeReceipt = () => {
 };
 
 const viewReceipt = (receiptUrl) => {
-  previewReceiptUrl.value = `http://localhost:3000${receiptUrl}`;
+  previewReceiptUrl.value = `${getBaseUrl()}${receiptUrl}`;
   showReceiptPreview.value = true;
 };
 
@@ -154,7 +161,7 @@ const openEditModal = (expense) => {
     expense_date: expense.expense_date
   };
   receiptFile.value = null;
-  receiptPreview.value = expense.receipt_image ? `http://localhost:3000${expense.receipt_image}` : null;
+  receiptPreview.value = expense.receipt_image ? `${getBaseUrl()}${expense.receipt_image}` : null;
   showModal.value = true;
 };
 
