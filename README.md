@@ -9,6 +9,17 @@ A sophisticated full-stack expense management system featuring **AI-powered Rece
 
 ---
 
+## 🚀 Tech Stack
+
+| Frontend | Backend | DevOps/DB |
+| :--- | :--- | :--- |
+| **Vue 3** (Composition API) | **Node.js** | **MySQL 8.0** |
+| **Tailwind CSS** | **Express.js** | **Docker & Compose** |
+| **Chart.js** | **Multer** (File Uploads) | **Nginx** |
+| **Tesseract.js** (OCR) | **Axios** | **REST API** |
+
+---
+
 ## ✨ Key Features
 
 ### 📸 Smart Receipt OCR
@@ -67,14 +78,24 @@ A sophisticated full-stack expense management system featuring **AI-powered Rece
 
 ---
 
-## 🚀 Tech Stack
+## 📸 Screenshots
 
-| Frontend | Backend | DevOps/DB |
-| :--- | :--- | :--- |
-| **Vue 3** (Composition API) | **Node.js** | **MySQL 8.0** |
-| **Tailwind CSS** | **Express.js** | **Docker & Compose** |
-| **Chart.js** | **Multer** (File Uploads) | **Nginx** |
-| **Tesseract.js** (OCR) | **Axios** | **REST API** |
+### Dashboard
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Receipt Scanner
+![Receipt Scanner](docs/screenshots/receipt-scanner.png)
+
+### Category Management
+![Categories](docs/screenshots/categories.png)
+
+### Charts
+![Charts](docs/screenshots/charts.png)
+
+### Expenses
+![Expenses](docs/screenshots/expenses.png)
+
+---
 
 ## 📁 Project Structure
 
@@ -136,6 +157,7 @@ expense-tracker/
 ```
 
 ---
+
 ## 📚 API Documentation
 
 ### Base URL
@@ -362,8 +384,6 @@ CREATE TABLE expenses (
 
 ---
 
-## 📊 Features in Detail
-
 ### Receipt OCR Scanning
 
 The receipt scanner uses Tesseract.js to perform optical character recognition directly in the browser.
@@ -405,22 +425,3 @@ Create custom categories with:
 - **Monthly Trend** - Line chart showing 12-month history
 - **Category Comparison** - Compare categories over 3/6/12/24 months
 - **Growth Analysis** - Month-over-month percentage changes
-
-
-## 📸 Screenshots
-
-### Dashboard
-![Dashboard](docs/screenshots/dashboard.png)
-
-### Receipt Scanner
-![Receipt Scanner](docs/screenshots/receipt-scanner.png)
-
-### Category Management
-![Categories](docs/screenshots/categories.png)
-
-### Analytics
-![Analytics](docs/screenshots/analytics.png)
-
----
-
-**Made with ❤️ by Your Team**
