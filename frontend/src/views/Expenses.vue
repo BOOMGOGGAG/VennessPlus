@@ -5,11 +5,10 @@ import ReceiptScanner from '../components/ReceiptScanner.vue';
 
 // Helper function to get base URL
 const getBaseUrl = () => {
-  // if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-  //   return `${window.location.protocol}//${window.location.hostname}`;
-  // }
-  // return 'http://localhost:3000';
-  return 'https://accounting.redirectme.net/expenses'
+  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return `${window.location.protocol}//${window.location.hostname}`;
+  }
+  return 'http://localhost:3000';
 };
 
 const expenses = ref([]);
