@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import Dashboard from '../views/Dashboard.vue';
 import Expenses from '../views/Expenses.vue';
 import Categories from '../views/Categories.vue';
+import CategoryComparison from '../views/CategoryComparison.vue';
 
 const routes = [
   {
@@ -18,6 +19,11 @@ const routes = [
     path: '/categories',
     name: 'Categories',
     component: Categories
+  },
+  {
+    path: '/comparison',
+    name: 'CategoryComparison',
+    component: CategoryComparison
   }
 ];
 

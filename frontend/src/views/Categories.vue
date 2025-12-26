@@ -30,7 +30,7 @@ const loadCategories = async () => {
   try {
     const response = await api.getCategories();
     categories.value = response.data.data;
-    console.log(categories.value)
+    // console.log(categories.value)
   } catch (error) {
     console.error('Error loading categories:', error);
     alert('Failed to load categories');

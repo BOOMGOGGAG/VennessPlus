@@ -65,6 +65,43 @@ class DashboardController {
       });
     }
   }
+
+  static async getCategoryComparison(req, res) {
+    try {
+      const months = parseInt(req.query.months) || 6;
+      const comparison = await Expense.getCategoryComparison(months);
+      
+      res.json({
+        success: true,
+        data: comparison
+      });
+    } catch (error) {
+      console.error('Error fetching category comparison:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching category comparison',
+        error: error.message
+      });
+    }
+  }
+
+  static async getCategoryGrowth(req, res) {
+    try {
+      const growth = await Expense.getCategoryGrowth();
+      
+      res.json({
+        success: true,
+        data: growth
+      });
+    } catch (error) {
+      console.error('Error fetching category growth:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching category growth',
+        error: error.message
+      });
+    }
+  }
 }
 
 module.exports = DashboardController;

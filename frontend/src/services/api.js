@@ -56,12 +56,21 @@ export default {
   getDashboardSummary(params = {}) {
     return api.get('/dashboard/summary', { params });
   },
-  
+
   getCategoryBreakdown(params = {}) {
     return api.get('/dashboard/category-breakdown', { params });
   },
-  
+
   getMonthlyTrend(params = {}) {
     return api.get('/dashboard/monthly-trend', { params });
+  },
+
+  // New methods for category comparison
+  getCategoryComparison(params = {}) {
+    return api.get('/dashboard/category-comparison', { params });
+  },
+
+  getCategoryGrowth() {
+    return api.get('/dashboard/category-growth');
   }
 };

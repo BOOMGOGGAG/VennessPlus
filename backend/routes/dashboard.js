@@ -11,4 +11,10 @@ router.get('/category-breakdown', DashboardController.getCategoryBreakdown);
 // Get monthly trend
 router.get('/monthly-trend', DashboardController.getMonthlyTrend);
 
+// Get category comparison over time
+router.get('/category-comparison', DashboardController.getCategoryComparison);
+
+// Get category growth (current vs previous month)
+router.get('/category-growth', DashboardController.getCategoryGrowth);
+
 module.exports = router;
